@@ -1,5 +1,5 @@
 // service-worker.js  (App Shell, full offline after first load)
-const CACHE = 'johan-fitness-cache-v3';
+const CACHE = 'johan-fitness-cache-v6';
 const ASSETS = [
   './',
   './index.html',
@@ -73,3 +73,4 @@ self.addEventListener('fetch', (event) => {
     fetch(req).catch(() => new Response('Offline', { status: 503, statusText: 'Offline' }))
   );
 });
+
