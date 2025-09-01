@@ -26,7 +26,7 @@
       --brand:#7d0a0a; --brand-2:#b21a1a;
       --ink:#111; --muted:#666; --line:#ececec;
       --bg:#fff; --card:#fff;
-      --bg-dark:#0b0b0b; --ink-dark:#f2f2f2; --card-dark:#121212; --line-dark:#242424;
+      --bg-dark:#0b0b0b; --ink-dark:#f2f2f2; --card-dark:#121212; --line-dark:#242424;scr
       --ok:#0a7d36; --bad:#a11;
     }
 
@@ -221,398 +221,38 @@
    Helpers
 =========================== */
 const U = {
-  // Simple unit scaling; defaults to 100g base for per-100g items
   normalizeAmount(qty, unit, baseUnit){
     qty = Number(qty||0);
     unit = (unit||'g').toLowerCase();
     baseUnit = (baseUnit||'100g').toLowerCase();
 
-    // If base is "1 unit" (e.g., egg), then qty is already in units
-    if (baseUnit.startsWith('1 ')) {
-      // support "unit" and "units" and blank as same thing
-      return { multiplier: qty, note: baseUnit };
-    }
+    if (baseUnit.startsWith('1 ')) return { multiplier: qty, note: baseUnit };
 
-    // If base is per 100g
     if (baseUnit === '100g') {
       if (unit === 'g') return { multiplier: qty/100, note: 'per 100g' };
       if (unit === 'oz') return { multiplier: (qty*28.3495)/100, note: 'per 100g' };
-      // approximate common kitchen volumes for many foods
       if (unit === 'cup') return { multiplier: (qty*240)/100, note: 'per 100g (cup≈240g*)' };
       if (unit === 'tbsp') return { multiplier: (qty*15)/100, note: 'per 100g (tbsp≈15g*)' };
-      if (unit === 'unit') return { multiplier: qty, note: 'units (no weight conversion)' };
     }
-
-    // If base is per tbsp
     if (baseUnit === '1 tbsp') {
       if (unit === 'tbsp') return { multiplier: qty, note: 'per tbsp' };
       if (unit === 'g') return { multiplier: qty/15, note: 'tbsp≈15g*' };
       if (unit === 'oz') return { multiplier: (qty*28.3495)/15, note: 'tbsp≈15g*' };
       if (unit === 'cup') return { multiplier: (qty*16), note: '1 cup = 16 tbsp' };
-      if (unit === 'unit') return { multiplier: qty, note: 'unit as tbsp' };
     }
-
-    // If base is per cup
     if (baseUnit === '1 cup') {
       if (unit === 'cup') return { multiplier: qty, note: 'per cup' };
       if (unit === 'tbsp') return { multiplier: qty/16, note: '16 tbsp = 1 cup' };
       if (unit === 'g') return { multiplier: qty/240, note: 'cup≈240g*' };
       if (unit === 'oz') return { multiplier: (qty*28.3495)/240, note: 'cup≈240g*' };
-      if (unit === 'unit') return { multiplier: qty, note: 'unit as cup' };
     }
-
-    // Fallback (treat as 1:1)
     return { multiplier: qty, note: baseUnit };
   },
 
   lineToEntry(line){
-    // format: name|baseUnit|cal|pro|carb|fat
     const p = line.split('|').map(s=>s.trim());
     return { name:p[0], base:p[1], cal:+p[2], pro:+p[3], carb:+p[4], fat:+p[5] };
   }
-};
-
-/* ===========================
-   Food DB (CSV compact list)
-   name|baseUnit|cal|pro|carb|fat
-   - baseUnit is either "100g", "1 cup", "1 tbsp", or "1 unit"
-=========================== */
-const FOOD_CSV = `
-chicken breast|100g|165|31|0|3.6
-rotisserie chicken (light)|100g|175|29|0|6
-chicken thigh (skinless)|100g|209|26|0|11
-ground chicken (93%)|100g|172|23|0|9
-turkey breast|100g|135|29|0|1
-ground turkey (93%)|100g|166|23|0|8
-lean ground beef (90%)|100g|176|26|0|8
-ground beef (80%)|100g|254|26|0|17
-sirloin steak|100g|206|26|0|11
-ribeye steak|100g|291|24|0|21
-pork loin|100g|195|27|0|9
-pork chop|100g|231|25|0|14
-ham (lean)|100g|145|20|1|6
-bacon|100g|541|37|1|42
-sausage (pork)|100g|301|12|1|27
-salmon|100g|208|20|0|13
-tilapia|100g|96|21|0|1.7
-cod|100g|82|18|0|0.7
-shrimp|100g|99|24|0|0.3
-tuna (canned water)|100g|116|26|0|1
-eggs|1 unit|70|6|0.5|5
-egg whites|100g|52|11|0.7|0.2
-greek yogurt (plain, nonfat)|100g|59|10|3.6|0.4
-greek yogurt (2%)|100g|73|9.7|3.9|2
-cottage cheese (low-fat)|100g|81|11|3.4|3
-milk (2%)|1 cup|122|8|12|5
-milk (whole)|1 cup|149|7.7|12|8
-almond milk (unsweetened)|1 cup|30|1|1|2.5
-oat milk (unsweetened)|1 cup|90|2|16|1.5
-cheddar cheese|100g|403|25|1.3|33
-mozzarella (part-skim)|100g|280|28|3|17
-parmesan|100g|431|38|4|29
-whey protein|100g|400|80|8|5
-casein protein|100g|360|80|7|1
-brown rice (cooked)|100g|112|2.3|23|0.8
-white rice (cooked)|100g|130|2.5|28|0.3
-quinoa (cooked)|100g|120|4.4|21|1.9
-oats (dry)|100g|389|17|66|7
-oatmeal (cooked)|100g|71|2.5|12|1.5
-pasta (cooked)|100g|131|5|25|1.1
-whole-wheat pasta (cooked)|100g|124|5.5|27|0.9
-bread, white|1 unit|80|3|14|1
-bread, whole-wheat|1 unit|100|4|17|1.5
-tortilla (flour, 8")|1 unit|140|4|24|3.5
-tortilla (corn)|1 unit|52|1.5|11|0.7
-bagel (plain)|1 unit|250|9|48|1
-english muffin|1 unit|130|5|25|1
-potato (russet)|100g|79|2|17|0.1
-sweet potato|100g|86|1.6|20|0.1
-fries (baked)|100g|196|3|31|6
-hash browns|100g|326|3.5|38|17
-beans, black (cooked)|100g|132|8.9|24|0.5
-beans, pinto (cooked)|100g|143|9|27|0.7
-chickpeas (cooked)|100g|164|9|27|2.6
-lentils (cooked)|100g|116|9|20|0.4
-edamame|100g|121|12|9|5
-peas|100g|81|5.4|14|0.4
-corn|100g|96|3.4|21|1.5
-broccoli|100g|55|4.6|11|0.5
-cauliflower|100g|25|1.9|5|0.3
-carrots|100g|41|0.9|10|0.2
-spinach (raw)|100g|23|2.9|3.6|0.4
-kale (raw)|100g|49|4.3|9|0.9
-lettuce (romaine)|100g|17|1.2|3.3|0.3
-mushrooms|100g|22|3.1|3.3|0.3
-onion|100g|40|1.1|9|0.1
-bell pepper|100g|31|1|6|0.3
-tomato|100g|18|0.9|3.9|0.2
-cucumber|100g|15|0.7|3.6|0.1
-avocado|100g|160|2|9|15
-banana|1 unit|105|1.3|27|0.3
-apple|1 unit|95|0.5|25|0.3
-orange|1 unit|62|1.2|15|0.2
-strawberries|100g|32|0.7|7.7|0.3
-blueberries|100g|57|0.7|14|0.3
-grapes|100g|69|0.7|18|0.2
-pineapple|100g|50|0.5|13|0.1
-mango|100g|60|0.8|15|0.4
-watermelon|100g|30|0.6|8|0.2
-peanut butter|1 tbsp|94|4|3|8
-almond butter|1 tbsp|98|3.4|3.4|9
-cashew butter|1 tbsp|94|2.8|5|8
-olive oil|1 tbsp|119|0|0|14
-avocado oil|1 tbsp|124|0|0|14
-butter|1 tbsp|102|0.1|0|12
-mayonnaise|1 tbsp|94|0|0|10
-bbq sauce|1 tbsp|29|0|7|0
-ketchup|1 tbsp|17|0|4.5|0
-mustard|1 tbsp|9|0.5|1|0.1
-ranch dressing|1 tbsp|73|0.2|0.6|7.6
-caesar dressing|1 tbsp|78|0.6|0.8|8
-hot sauce|1 tbsp|5|0|1|0
-soy sauce|1 tbsp|10|1|1|0
-salsa|1 tbsp|5|0.2|1|0
-hummus|1 tbsp|27|1.2|2.2|1.9
-guacamole|1 tbsp|35|0.5|2|3
-granola|100g|471|10|64|20
-cereal, corn flakes|100g|357|7|84|0.4
-cereal, oats-based|100g|380|12|67|6
-protein bar (avg)|100g|350|30|35|9
-rice cake|1 unit|35|0.7|7|0.3
-popcorn (air-popped)|100g|387|13|78|4.5
-pretzels|100g|380|10|80|3
-tortilla chips|100g|536|7|56|32
-banana chips|100g|519|2.3|58|34
-trail mix (nuts+raisins)|100g|462|13|57|23
-almonds|100g|579|21|22|50
-walnuts|100g|654|15|14|65
-cashews|100g|553|18|30|44
-pistachios|100g|562|20|28|45
-peanuts (dry-roasted)|100g|585|25|21|49
-sunflower seeds|100g|584|21|20|51
-chia seeds|100g|486|17|42|31
-flax seeds|100g|534|18|29|42
-pumpkin seeds|100g|559|30|11|49
-coconut oil|1 tbsp|121|0|0|14
-coconut (shredded unsweet)|100g|354|3.3|15|33
-cocoa powder (unsweet)|100g|228|20|58|13
-dark chocolate (70%)|100g|600|7.8|46|43
-honey|1 tbsp|64|0|17|0
-maple syrup|1 tbsp|52|0|13|0
-jam/jelly|1 tbsp|56|0|14|0
-bagel thin|1 unit|110|4|24|1
-wrap (low-carb)|1 unit|70|8|9|2
-tuna pouch (2.6oz)|1 unit|70|16|0|0.5
-salami|100g|336|22|2|26
-prosciutto|100g|247|26|0|14
-turkey deli|100g|104|17|2|2
-chicken deli|100g|124|20|3|3
-beef jerky|100g|410|33|11|27
-cottage cheese (full)|100g|98|11|3.4|4.3
-skyr (plain)|100g|64|11|3.6|0.2
-ricotta (part-skim)|100g|138|11|5|8
-cream cheese|100g|342|6|5|34
-sour cream|100g|193|2.4|5.6|19
-yogurt (plain)|100g|61|3.5|4.7|3.3
-yogurt (vanilla)|100g|85|3.5|12|1.5
-ice cream (vanilla)|100g|207|3.5|24|11
-sherbet|100g|144|1|31|1
-oat bread slice|1 unit|100|4|18|1.5
-sourdough slice|1 unit|90|3.6|18|0.8
-pita (6")|1 unit|170|6|35|1
-naan|100g|310|9|54|7
-quinoa flakes (dry)|100g|368|14|64|6
-couscous (cooked)|100g|112|3.8|23|0.2
-barley (cooked)|100g|123|2.3|28|0.4
-farro (cooked)|100g|127|4.2|26|1
-buckwheat (cooked)|100g|92|3.4|20|0.6
-bulgur (cooked)|100g|83|3.1|19|0.2
-tempeh|100g|195|20|9|11
-tofu (firm)|100g|76|8|1.9|4.8
-seitan|100g|370|75|14|2
-veggie burger patty|1 unit|124|15|9|3.5
-veggie nuggets|100g|270|13|23|13
-spinach wrap|1 unit|210|8|35|5
-protein tortilla|1 unit|70|8|9|2
-bbq chicken pizza slice|1 unit|285|15|32|11
-pepperoni pizza slice|1 unit|298|13|34|13
-plain pizza slice|1 unit|285|12|33|10
-sushi white rice (per roll rice)|100g|130|2.5|28|0.3
-sushi roll (salmon avocado)|1 unit|250|9|26|11
-ramen (noodles cooked)|100g|138|5|25|2.1
-pho broth w/ noodles|100g|45|3|6|1
-pad thai (avg)|100g|220|8|32|7
-burrito (avg)|1 unit|520|25|60|20
-taco (avg)|1 unit|170|9|18|8
-enchilada (avg)|1 unit|320|16|28|16
-quesadilla (avg)|1 unit|530|24|48|28
-nachos (avg)|100g|343|8|42|17
-shawarma chicken|100g|200|18|5|10
-gyro meat|100g|217|20|4|14
-falafel|100g|333|13|31|17
-pita chips|100g|490|10|64|20
-tzatziki|100g|80|6|5|4
-balsamic vinaigrette|1 tbsp|45|0|2|4
-italian dressing|1 tbsp|43|0|1|4
-french dressing|1 tbsp|73|0|4|6
-sugar|1 tbsp|49|0|12.6|0
-brown sugar|1 tbsp|52|0|13.5|0
-stevia (packet)|1 unit|0|0|0|0
-cane syrup|1 tbsp|60|0|15|0
-raisins|100g|299|3.1|79|0.5
-dates|100g|282|2.5|75|0.4
-prunes|100g|240|2.2|64|0.4
-apricots (dried)|100g|241|3.4|63|0.5
-cranberries (dried)|100g|325|0.2|83|1
-egg (large)|1 unit|70|6|0.5|5
-banana (small)|1 unit|90|1.1|23|0.3
-banana (large)|1 unit|121|1.5|31|0.4
-orange juice|1 cup|112|2|26|0.5
-apple juice|1 cup|114|0|28|0
-sports drink|1 cup|50|0|13|0
-cola soda|1 cup|97|0|25|0
-coffee (black)|1 cup|2|0.3|0|0
-latte (2% milk)|1 cup|190|10|18|7
-matcha latte (2%)|1 cup|180|9|18|6
-protein shake (water)|1 cup|120|25|3|1
-protein shake (milk)|1 cup|220|27|18|6
-`;
-
-/* ===========================
-   Synonyms (alias=>target)
-=========================== */
-const SYN = {
-  "chix":"chicken breast",
-  "chicken":"chicken breast",
-  "rotisserie":"rotisserie chicken (light)",
-  "thigh":"chicken thigh (skinless)",
-  "turkey":"turkey breast",
-  "sirloin":"sirloin steak",
-  "ribeye":"ribeye steak",
-  "ground beef":"lean ground beef (90%)",
-  "pb":"peanut butter",
-  "almond butter":"almond butter",
-  "greek yogurt":"greek yogurt (plain, nonfat)",
-  "yogurt":"yogurt (plain)",
-  "rice":"white rice (cooked)",
-  "brown rice":"brown rice (cooked)",
-  "oatmeal":"oatmeal (cooked)",
-  "oats":"oats (dry)",
-  "cottage":"cottage cheese (low-fat)",
-  "egg whites":"egg whites",
-  "banana":"banana",
-  "apple":"apple",
-  "berries":"blueberries",
-  "broc":"broccoli",
-  "avo":"avocado",
-  "tortilla":"tortilla (flour, 8\")",
-  "wrap":"wrap (low-carb)",
-  "protein tortilla":"protein tortilla",
-  "whey":"whey protein",
-  "casein":"casein protein"
-};
-
-/* ===========================
-   Build DB object
-=========================== */
-const foodDB = {};
-FOOD_CSV.trim().split('\n').forEach(line=>{
-  const f = U.lineToEntry(line);
-  foodDB[f.name.toLowerCase()] = { cal:f.cal, pro:f.pro, carb:f.carb, fat:f.fat, unit:f.base };
-});
-Object.entries(SYN).forEach(([alias,target])=>{
-  const t = foodDB[target.toLowerCase()];
-  if (t) foodDB[alias.toLowerCase()] = t;
-});
-
-/* ===========================
-   UI ELEMENTS
-=========================== */
-const foodInput = document.getElementById("foodInput");
-const acList = document.getElementById("acList");
-const qtyInput = document.getElementById("qtyInput");
-const unitInput = document.getElementById("unitInput");
-const mealBody = document.querySelector("#mealTable tbody");
-const totals = { cal:0, pro:0, carb:0, fat:0 };
-const calTotal = document.getElementById("calTotal");
-const proTotal = document.getElementById("proTotal");
-const carbTotal = document.getElementById("carbTotal");
-const fatTotal = document.getElementById("fatTotal");
-
-/* ===========================
-   Autocomplete
-=========================== */
-function refreshAC(){
-  const q = (foodInput.value||"").toLowerCase().trim();
-  acList.innerHTML="";
-  if(!q){ acList.style.display="none"; return; }
-  const keys = Object.keys(foodDB);
-  const matches = keys.filter(k=>k.includes(q)).slice(0,12);
-  matches.forEach(m=>{
-    const d = document.createElement("div");
-    d.className = "ac-item";
-    d.textContent = `${m} (${foodDB[m].unit})`;
-    d.onclick = ()=>{
-      foodInput.value = m;
-      acList.style.display="none";
-    };
-    acList.appendChild(d);
-  });
-  acList.style.display = matches.length ? "block" : "none";
-}
-foodInput.addEventListener("input", refreshAC);
-document.addEventListener("click",(e)=>{
-  if(!acList.contains(e.target) && e.target!==foodInput) acList.style.display="none";
-});
-
-/* ===========================
-   Add Meal
-=========================== */
-function updateTotals(){
-  calTotal.textContent = totals.cal.toFixed(0);
-  proTotal.textContent = totals.pro.toFixed(0);
-  carbTotal.textContent = totals.carb.toFixed(0);
-  fatTotal.textContent = totals.fat.toFixed(0);
-}
-document.getElementById("addMeal").onclick = ()=>{
-  let key = (foodInput.value||"").toLowerCase().trim();
-  if (SYN[key]) key=SYN[key].toLowerCase();
-  const item = foodDB[key];
-  const qty = parseFloat(qtyInput.value||"1");
-  const unit = (unitInput.value||"g").toLowerCase();
-
-  if (!item) { alert("Unknown food. Try autocomplete and pick an item."); return; }
-  if (!qty || qty<=0) { alert("Enter a quantity > 0"); return; }
-
-  const scale = U.normalizeAmount(qty, unit, item.unit);
-  const c = item.cal * scale.multiplier;
-  const p = item.pro * scale.multiplier;
-  const cb = item.carb * scale.multiplier;
-  const f = item.fat * scale.multiplier;
-
-  const tr = document.createElement("tr");
-  tr.innerHTML = `<td>${key}</td><td>${qty} ${unit}</td>
-                  <td>${c.toFixed(0)}</td><td>${p.toFixed(0)}</td>
-                  <td>${cb.toFixed(0)}</td><td>${f.toFixed(0)}</td>`;
-  mealBody.appendChild(tr);
-
-  totals.cal += c; totals.pro += p; totals.carb += cb; totals.fat += f;
-  updateTotals();
-
-  // clear inputs
-  foodInput.value=""; qtyInput.value=1;
-};
-
-/* ===========================
-   Workout logging
-=========================== */
-document.getElementById("addWorkout").onclick=()=>{
-  const val=document.getElementById("workoutInput").value.trim();
-  if(!val) return;
-  const d=document.createElement("div");
-  d.textContent=val;
-  document.getElementById("workoutList").appendChild(d);
-  document.getElementById("workoutInput").value="";
 };
 
 /* ===========================
@@ -648,7 +288,6 @@ const split = ["Chest & Triceps","Back & Biceps","Legs","Shoulders & Core","Rest
 function updateTrainingBanner(){
   let idx = parseInt(localStorage.getItem("trainDay")||"0",10);
   banner.firstChild.textContent = "Next Training Day: " + split[idx];
-  // advance and store for next open
   idx = (idx+1) % split.length;
   localStorage.setItem("trainDay", String(idx));
 }
@@ -656,12 +295,16 @@ spinner.style.display="inline-block";
 setTimeout(()=>{ updateTrainingBanner(); spinner.style.display="none"; }, 400);
 
 /* ===========================
-   Service Worker
+   Service Worker (with cache bump)
 =========================== */
-if('serviceWorker' in navigator){ navigator.serviceWorker.register('service-worker.js'); }
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('service-worker.js?v=2'); // bump v=2 → forces update
+}
 </script>
+
 </body>
 
 </html>
+
 
 
